@@ -174,7 +174,7 @@ export function useUnifiedAuth() {
 
     return {
         user,
-        setUser,      // if you need to set from other places
+        setUser,
         loading,
         // actions
         login,        // email/password

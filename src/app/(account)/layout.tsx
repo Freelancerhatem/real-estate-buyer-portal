@@ -1,11 +1,10 @@
-// app/(protected)/layout.tsx
 "use client";
 
 import { useUnifiedAuth } from "@/hooks/useUnifiedAuth";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect } from "react";
 
-export default function ProtectedLayout({
+export default function AccountLayout({
   children,
 }: {
   children: React.ReactNode;
