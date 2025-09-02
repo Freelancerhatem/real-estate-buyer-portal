@@ -28,14 +28,13 @@ export default function ProfileShell({
     <div className="max-w-5xl mx-auto px-4 py-8">
       <div className="mb-4">
         <Link
-          href="/"
+          href="/dashboard"
           className="inline-flex items-center gap-2 text-sm text-gray-700 hover:text-primary"
         >
           {/* Rect icon */}
           <span className="inline-flex h-8 w-8 items-center justify-center rounded-md border bg-white/70 shadow-sm">
             <FiArrowLeft className="h-4 w-4" aria-hidden />
           </span>
-          <span>Home</span>
         </Link>
       </div>
       <Header user={user} onUserChange={onUserChange} />

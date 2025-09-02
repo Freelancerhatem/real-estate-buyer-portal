@@ -1,91 +1,128 @@
-import { useState, useEffect, useCallback } from "react";
+"use client";
+
+import { useCallback, useEffect, useRef, useState } from "react";
 import axiosInstance from "@/lib/axiosInstance";
-import { useAuth } from "@/hooks/useAuth";
-import type { AxiosError } from "axios";
 
-type FavoriteDoc = {
-    _id: string;
-    userId: string;
-    propertyId: { _id: string };
-    createdAt?: string;
-    updatedAt?: string;
+export type FavoriteCheckResponse = { isFavorite?: boolean } | null;
+
+type UseFavoriteOptions = {
+    propertyId: string;
+    /** auto-check on mount (default: true) */
+    initOnMount?: boolean;
+    /** override endpoints if needed */
+    getUrl?: (id: string) => string;      // default: `/favorites/:id`
+    addUrl?: string;                      // default: `/favorites`
+    removeUrl?: string;                   // default: `/favorites`
 };
 
-type FavoritesListResp = {
-    status: "success" | "fail";
-    data: FavoriteDoc[];
+type ToggleCallbacks = {
+    onSuccess?: (fav: boolean) => void;
+    onError?: (fav: boolean, error?: unknown) => void;
 };
 
-type ToggleResp = {
-    status: "success" | "fail";
-    message?: string;
-};
-
-export const useFavorite = (propertyId?: string) => {
-    const { user, loading } = useAuth();
+export function useFavorite({
+    propertyId,
+    initOnMount = true,
+    getUrl = (id) => `/v2/favorites/${id}`,
+    addUrl = "/v2/favorites",
+    removeUrl = "/v2/favorites",
+}: UseFavoriteOptions) {
     const [isFavorite, setIsFavorite] = useState(false);
+    const [loading, setLoading] = useState(false);
+    const [initLoading, setInitLoading] = useState(!!initOnMount);
+    const [error, setError] = useState<unknown>(null);
+    const mounted = useRef(true);
 
-    // Fetch current favorite status
     useEffect(() => {
-        if (!user || loading || !propertyId) return;
+        mounted.current = true;
+        return () => {
+            mounted.current = false;
+        };
+    }, []);
 
-        const ac = new AbortController();
+    // initialize from backend
+    useEffect(() => {
+        if (!initOnMount || !propertyId) return;
+        const controller = new AbortController();
 
         (async () => {
             try {
-                const resp = await axiosInstance.get<FavoritesListResp>(
-                    `/favorites/${user._id}`,
-                    { signal: ac.signal }
+                setInitLoading(true);
+                setError(null);
+                const res = await axiosInstance.get<FavoriteCheckResponse>(
+                    getUrl(propertyId),
+                    { signal: controller.signal }
                 );
-                const isFav = resp.data.data.some(
-                    (fav) => fav.propertyId?._id === propertyId
-                );
-                setIsFavorite(isFav);
-            } catch (err: unknown) {
-                if ((err as AxiosError).code === "ERR_CANCELED") return;
-                console.error("Error fetching favorite status:", err);
+                if (!mounted.current) return;
+                setIsFavorite(Boolean(res.data?.isFavorite));
+            } catch (e) {
+                if (!mounted.current) return;
+                // ignore aborts; store other errors
+                if ((e as any)?.name !== "CanceledError") setError(e);
+            } finally {
+                if (mounted.current) setInitLoading(false);
             }
         })();
 
-        return () => ac.abort();
-    }, [user, loading, propertyId]);
+        return () => controller.abort();
+    }, [getUrl, initOnMount, propertyId]);
 
-    // Optimistic toggle with rollback
-    const toggleFavorite = useCallback(async () => {
-        if (loading) return;
-        if (!user) {
-            console.error("User not logged in.");
-            return;
-        }
-        if (!propertyId) {
-            console.error("Missing propertyId.");
-            return;
-        }
-
-        const next = !isFavorite;
-        setIsFavorite(next); // optimistic
-
+    const add = useCallback(async () => {
+        setLoading(true);
+        setError(null);
         try {
-            if (next) {
-                // Add favorite
-                const resp = await axiosInstance.post<ToggleResp>(`/favorites`, {
-                    userId: user._id,
-                    propertyId,
-                });
-                if (resp.data.status !== "success") throw new Error("Add favorite failed");
-            } else {
-                // Remove favorite
-                const resp = await axiosInstance.delete<ToggleResp>(`/favorites`, {
-                    data: { userId: user._id, propertyId },
-                });
-                if (resp.data.status !== "success") throw new Error("Remove favorite failed");
-            }
-        } catch (err) {
-            // rollback
-            setIsFavorite((prev) => !prev);
-            console.error("Error toggling favorite status:", err);
+            await axiosInstance.post(addUrl, { propertyId });
+            if (mounted.current) setIsFavorite(true);
+            return true;
+        } catch (e) {
+            if (mounted.current) setError(e);
+            return false;
+        } finally {
+            if (mounted.current) setLoading(false);
         }
-    }, [isFavorite, loading, propertyId, user]);
+    }, [addUrl, propertyId]);
 
-    return { isFavorite, toggleFavorite };
-};
+    const remove = useCallback(async () => {
+        setLoading(true);
+        setError(null);
+        try {
+            await axiosInstance.delete(removeUrl, { data: { propertyId } });
+            if (mounted.current) setIsFavorite(false);
+            return true;
+        } catch (e) {
+            if (mounted.current) setError(e);
+            return false;
+        } finally {
+            if (mounted.current) setLoading(false);
+        }
+    }, [removeUrl, propertyId]);
+
+    // optimistic toggle with rollback
+    const toggle = useCallback(
+        async (cb?: ToggleCallbacks) => {
+            const prev = isFavorite;
+            setIsFavorite(!prev);
+            const ok = prev ? await remove() : await add();
+            if (!ok) {
+                // rollback
+                setIsFavorite(prev);
+                cb?.onError?.(prev, error);
+                return false;
+            }
+            cb?.onSuccess?.(!prev);
+            return true;
+        },
+        [add, remove, isFavorite, error]
+    );
+
+    return {
+        isFavorite,
+        loading: loading || initLoading,
+        initLoading,
+        error,
+        setIsFavorite,
+        add,
+        remove,
+        toggle,
+    };
+}

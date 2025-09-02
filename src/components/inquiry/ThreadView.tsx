@@ -1,31 +1,25 @@
 "use client";
 
 /**
- * ThreadView
- * - Fetches a specific inquiry (header).
- * - Fetches messages + timeline (if endpoints exist).
- * - Provides a simple message composer that POSTs to /:id/messages.
- * - QuickActions can post timeline events to /:id/timeline.
- *
- * If your API doesn’t have messages/timeline yet, the UI will display the
- * initial inquiry message and a basic 2-line timeline.
+ * ThreadView (Classic + Premium)
+ * - Header: thumbnail, title, mobile back, and a 3-dot action menu
+ * - Chat: soft cards, gentle borders, primary accents for mine bubbles
+ * - Composer: premium focus ring + primary button
+ * - Timeline & Quick actions: hidden by default; revealed from menu
  */
 
-import { useCallback, useEffect, useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import axiosInstance from "@/lib/axiosInstance";
 import Timeline from "./Timeline";
 import QuickActions from "./QuickActions";
 import AutoTemplates from "./AutoTemplates";
 import type { Inquiry, Message, TimelineEvent, TimelineKind } from "./types";
 import Image from "next/image";
-
-function getAccessToken() {
-  if (typeof window === "undefined") return null;
-  return localStorage.getItem("accessToken");
-}
+import { FiArrowLeft, FiMoreVertical } from "react-icons/fi";
 
 export default function ThreadView() {
+  const router = useRouter();
   const params = useSearchParams();
   const activeId = params.get("id") || "";
 
@@ -36,26 +30,46 @@ export default function ThreadView() {
   const [composer, setComposer] = useState("");
   const [error, setError] = useState<string | null>(null);
 
-  // Fetch inquiry header
+  // UI: action menu + on-demand panels
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [showTimeline, setShowTimeline] = useState(false);
+  const [showActions, setShowActions] = useState(false);
+  const [showTemplates, setShowTemplates] = useState(false);
+  const menuRef = useRef<HTMLDivElement | null>(null);
+
+  const goBackToInbox = () => {
+    const url = new URL(window.location.href);
+    url.searchParams.delete("id");
+    router.push(`${url.pathname}?${url.searchParams.toString()}`);
+  };
+
+  // close menu on outside click
+  useEffect(() => {
+    function onDocClick(e: MouseEvent) {
+      if (!menuRef.current) return;
+      if (!menuRef.current.contains(e.target as Node)) setMenuOpen(false);
+    }
+    if (menuOpen) document.addEventListener("mousedown", onDocClick);
+    return () => document.removeEventListener("mousedown", onDocClick);
+  }, [menuOpen]);
+
+  // --- data bootstrap ---
   useEffect(() => {
     if (!activeId) {
       setHeader(null);
       setMessages([]);
       setTimeline([]);
+      setShowTimeline(false);
+      setShowActions(false);
       return;
     }
-
     let ignore = false;
-    const run = async () => {
+    (async () => {
       try {
         setLoading(true);
         setError(null);
-        const token = getAccessToken();
 
-        // 1) Header
-        const hdrRes = await axiosInstance.get(`/inquiries/${activeId}`, {
-          headers: token ? { Authorization: `Bearer ${token}` } : undefined,
-        });
+        const hdrRes = await axiosInstance.get(`/inquiries/${activeId}`);
         const x = hdrRes?.data?.data ?? hdrRes?.data;
 
         const hdr: Inquiry = {
@@ -83,26 +97,23 @@ export default function ThreadView() {
         };
         if (!ignore) setHeader(hdr);
 
-        // 2) Messages (optional endpoint)
+        // messages (optional endpoint)
         try {
           const msgRes = await axiosInstance.get(
-            `/inquiries/${activeId}/messages`,
-            {
-              headers: token ? { Authorization: `Bearer ${token}` } : undefined,
-            }
+            `/inquiries/${activeId}/messages`
           );
           const ms = (msgRes?.data?.data ?? msgRes?.data ?? []) as any[];
           if (!ignore) {
-            const normalized: Message[] = ms.map((m) => ({
-              id: m._id,
-              from: m.from,
-              text: m.text,
-              at: m.createdAt ?? m.at,
-            }));
-            setMessages(normalized);
+            setMessages(
+              ms.map((m) => ({
+                id: m._id,
+                from: m.from,
+                text: m.text,
+                at: m.createdAt ?? m.at,
+              }))
+            );
           }
         } catch {
-          // fallback: show initial message as a first bubble
           if (!ignore && x?.message) {
             setMessages([
               {
@@ -115,24 +126,22 @@ export default function ThreadView() {
           }
         }
 
-        // 3) Timeline (optional endpoint)
+        // timeline (optional endpoint — preload silently for instant open)
         try {
           const tlRes = await axiosInstance.get(
-            `/inquiries/${activeId}/timeline`,
-            {
-              headers: token ? { Authorization: `Bearer ${token}` } : undefined,
-            }
+            `/inquiries/${activeId}/timeline`
           );
           const ts = (tlRes?.data?.data ?? tlRes?.data ?? []) as any[];
           if (!ignore) {
-            const normalized: TimelineEvent[] = ts.map((t) => ({
-              id: t._id,
-              kind: t.kind,
-              title: t.title,
-              at: t.createdAt ?? t.at,
-              meta: t.meta,
-            }));
-            setTimeline(normalized);
+            setTimeline(
+              ts.map((t) => ({
+                id: t._id,
+                kind: t.kind,
+                title: t.title,
+                at: t.createdAt ?? t.at,
+                meta: t.meta,
+              }))
+            );
           }
         } catch {
           if (!ignore) {
@@ -159,9 +168,7 @@ export default function ThreadView() {
       } finally {
         setLoading(false);
       }
-    };
-
-    run();
+    })();
     return () => {
       ignore = true;
     };
@@ -169,13 +176,11 @@ export default function ThreadView() {
 
   const sendMessage = useCallback(async () => {
     if (!composer.trim() || !activeId) return;
-    const token = getAccessToken();
     try {
-      const res = await axiosInstance.post(
-        `/inquiries/${activeId}/messages`,
-        { from: "buyer", text: composer.trim() },
-        { headers: token ? { Authorization: `Bearer ${token}` } : undefined }
-      );
+      const res = await axiosInstance.post(`/inquiries/${activeId}/messages`, {
+        from: "buyer",
+        text: composer.trim(),
+      });
       const saved = res?.data?.data ?? res?.data;
       const newMsg: Message = {
         id: saved?._id ?? String(Date.now()),
@@ -202,12 +207,10 @@ export default function ThreadView() {
   const addTimeline = useCallback(
     async (kind: TimelineKind, title: string, meta?: Record<string, any>) => {
       if (!activeId) return;
-      const token = getAccessToken();
       try {
         const res = await axiosInstance.post(
           `/inquiries/${activeId}/timeline`,
-          { kind, title, meta },
-          { headers: token ? { Authorization: `Bearer ${token}` } : undefined }
+          { kind, title, meta }
         );
         const saved = res?.data?.data ?? res?.data;
         const item: TimelineEvent = {
@@ -219,19 +222,15 @@ export default function ThreadView() {
         };
         setTimeline((prev) => [...prev, item]);
       } catch {
-        // Fail silently (UI-only convenience)
+        /* no-op */
       }
     },
     [activeId]
   );
 
-  const onInsertTemplate = (text: string) => {
-    setComposer((v) => (v ? `${v} ${text}` : text));
-  };
-
   if (!activeId) {
     return (
-      <section className="flex-1 h-full overflow-y-auto p-6">
+      <section className="p-6">
         <p className="text-sm text-zinc-600">
           Select an inquiry from the left.
         </p>
@@ -241,15 +240,16 @@ export default function ThreadView() {
 
   if (loading && !header) {
     return (
-      <section className="flex-1 h-full overflow-y-auto p-6">
-        <p className="text-sm text-zinc-600">Loading inquiry…</p>
+      <section className="p-6">
+        <div className="h-6 w-48 bg-zinc-100 animate-pulse rounded" />
+        <div className="mt-4 h-24 bg-zinc-100 animate-pulse rounded" />
       </section>
     );
   }
 
   if (error) {
     return (
-      <section className="flex-1 h-full overflow-y-auto p-6">
+      <section className="p-6">
         <p className="text-sm text-red-600">{error}</p>
       </section>
     );
@@ -258,18 +258,28 @@ export default function ThreadView() {
   if (!header) return null;
 
   return (
-    <section className="flex-1 h-full overflow-y-auto">
+    <section className="min-h-full">
       {/* Header */}
-      <header className="border-b p-4 bg-white sticky top-0 z-10">
-        <div className="flex items-start sm:items-center gap-3 sm:gap-4">
+      <header className="sticky top-0 z-10 bg-white/95 supports-[backdrop-filter]:backdrop-blur border-b border-zinc-200">
+        <div className="flex items-start sm:items-center gap-3 sm:gap-4 p-4">
+          {/* Mobile back */}
+          <button
+            className="md:hidden inline-flex items-center justify-center size-9 rounded-md border border-zinc-200 hover:bg-zinc-50 focus:outline-none focus:ring-2 focus:ring-primary/20"
+            onClick={goBackToInbox}
+            aria-label="Back to inbox"
+          >
+            <FiArrowLeft />
+          </button>
+
+          {/* Thumbnail + title */}
           <Image
             src={header.property.thumbnail}
             alt=""
             width={64}
             height={64}
-            className="size-16 rounded object-cover bg-zinc-100"
+            className="size-16 rounded-lg object-cover bg-zinc-100 shadow-sm"
           />
-          <div className="min-w-0">
+          <div className="min-w-0 flex-1">
             <h1 className="text-base sm:text-lg font-semibold truncate">
               {header.property.title}
             </h1>
@@ -283,18 +293,74 @@ export default function ThreadView() {
                 : "Unassigned"}
             </p>
           </div>
+
+          {/* 3-dot action menu */}
+          <div className="relative" ref={menuRef}>
+            <button
+              className="inline-flex items-center justify-center size-9 rounded-md border border-zinc-200 hover:bg-zinc-50 focus:outline-none focus:ring-2 focus:ring-primary/20"
+              onClick={() => setMenuOpen((v) => !v)}
+              aria-haspopup="menu"
+              aria-expanded={menuOpen}
+              aria-label="Thread actions"
+            >
+              <FiMoreVertical />
+            </button>
+
+            {menuOpen && (
+              <div
+                role="menu"
+                className="
+                  absolute right-0 mt-2 w-44 rounded-lg border border-zinc-200 bg-white shadow-lg
+                  p-1 z-20
+                "
+              >
+                <button
+                  role="menuitem"
+                  className="w-full text-left px-3 py-2 rounded-md text-sm hover:bg-zinc-50 focus:outline-none focus:ring-2 focus:ring-primary/20"
+                  onClick={() => {
+                    setShowTimeline((s) => !s);
+                    setMenuOpen(false);
+                  }}
+                >
+                  {showTimeline ? "Hide timeline" : "Show timeline"}
+                </button>
+                <button
+                  role="menuitem"
+                  className="w-full text-left px-3 py-2 rounded-md text-sm hover:bg-zinc-50 focus:outline-none focus:ring-2 focus:ring-primary/20"
+                  onClick={() => {
+                    setShowActions((s) => !s);
+                    setMenuOpen(false);
+                  }}
+                >
+                  {showActions ? "Hide quick actions" : "Show quick actions"}
+                </button>
+                <button
+                  role="menuitem"
+                  className="w-full text-left px-3 py-2 rounded-md text-sm hover:bg-zinc-50 focus:outline-none focus:ring-2 focus:ring-primary/20"
+                  onClick={() => {
+                    setShowTemplates((s) => !s);
+                    setMenuOpen(false);
+                  }}
+                >
+                  {showTemplates
+                    ? "Hide auto templates"
+                    : "Show auto templates"}
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       </header>
 
       {/* Body */}
       <div className="p-4 sm:p-6 space-y-6">
         {/* Chat */}
-        <div className="rounded border p-4 bg-white">
+        <div className="rounded-xl border border-zinc-200 p-4 bg-white">
           <h3 className="font-medium mb-3">Chat</h3>
 
           <div className="space-y-2">
             {messages.map((m) => {
-              const mine = m.from === "buyer"; // style my messages on left for now
+              const mine = m.from === "buyer";
               return (
                 <div
                   key={m.id}
@@ -302,8 +368,10 @@ export default function ThreadView() {
                 >
                   <div
                     className={[
-                      "rounded px-3 py-2 text-sm border",
-                      mine ? "bg-white" : "bg-zinc-50",
+                      "rounded-lg px-3 py-2 text-sm border",
+                      mine
+                        ? "bg-primary/5 border-primary/20"
+                        : "bg-zinc-50 border-zinc-200",
                     ].join(" ")}
                   >
                     <p className="mb-1">{m.text}</p>
@@ -319,7 +387,10 @@ export default function ThreadView() {
           {/* Composer */}
           <div className="mt-3 flex gap-2">
             <input
-              className="flex-1 rounded border px-3 py-2 text-sm outline-none focus:ring-2 ring-zinc-300"
+              className="
+                flex-1 rounded-lg border border-zinc-200 px-3 py-2 text-sm
+                outline-none focus:border-primary focus:ring-2 focus:ring-primary/20
+              "
               placeholder="Type a message…"
               value={composer}
               onChange={(e) => setComposer(e.target.value)}
@@ -331,7 +402,12 @@ export default function ThreadView() {
               }}
             />
             <button
-              className="rounded border px-3 py-2 text-sm hover:bg-zinc-50"
+              className="
+                rounded-lg px-3 py-2 text-sm
+                bg-primary text-white hover:opacity-90
+                disabled:opacity-50
+                focus:outline-none focus:ring-2 focus:ring-primary/20
+              "
               onClick={sendMessage}
               disabled={!composer.trim()}
             >
@@ -340,26 +416,28 @@ export default function ThreadView() {
           </div>
         </div>
 
-        {/* Timeline */}
-        <Timeline items={timeline} />
+        {/* Conditionally rendered panels */}
+        {showActions && (
+          <QuickActions
+            onScheduleVisit={() =>
+              addTimeline("visit", "Visit scheduled", {
+                when: new Date().toISOString(),
+              })
+            }
+            onMakeOffer={() =>
+              addTimeline("offer", "Offer sent", { amount: "TBD" })
+            }
+            onRequestDocs={() => addTimeline("doc", "Requested disclosures")}
+          />
+        )}
 
-        {/* Quick actions */}
-        <QuickActions
-          onScheduleVisit={() =>
-            addTimeline("visit", "Visit scheduled", {
-              when: new Date().toISOString(),
-            })
-          }
-          onMakeOffer={() =>
-            addTimeline("offer", "Offer sent", {
-              amount: "TBD",
-            })
-          }
-          onRequestDocs={() => addTimeline("doc", "Requested disclosures")}
-        />
+        {showTimeline && <Timeline items={timeline} />}
 
-        {/* Auto templates */}
-        <AutoTemplates onInsertTemplate={onInsertTemplate} />
+        {showTemplates && (
+          <AutoTemplates
+            onInsertTemplate={(t) => setComposer((v) => (v ? `${v} ${t}` : t))}
+          />
+        )}
       </div>
     </section>
   );
