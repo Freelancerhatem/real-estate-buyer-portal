@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import axios from "axios";
-import axiosInstance from "@/lib/axiosInstance";
+import { publicApi } from "@/lib/axiosInstance";
 import { listing } from "@/types/listing";
 
 const usePropertyById = (id: string | undefined) => {
@@ -16,13 +16,13 @@ const usePropertyById = (id: string | undefined) => {
 
             try {
                 // Fetch property details
-                const propertyResponse = await axiosInstance.get(`/properties/${id}`);
+                const propertyResponse = await publicApi.get(`/properties/${id}`);
                 const propertyData = propertyResponse.data.data;
 
                 setProperty(propertyData);
 
                 // Fetch similar properties after property is successfully fetched
-                const similarResponse = await axiosInstance.get(`/properties/similar-prop/${id}`);
+                const similarResponse = await publicApi.get(`/properties/similar-prop/${id}`);
                 setSimilarProperties(similarResponse.data.data);
 
             } catch (err: unknown) {

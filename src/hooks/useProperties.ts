@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import axios from "axios";
 import { listing } from "@/types/listing";
-import axiosInstance from "@/lib/axiosInstance";
+import axiosInstance, { publicApi } from "@/lib/axiosInstance";
 
 interface UsePropertiesParams {
     all?: boolean;
@@ -57,7 +57,7 @@ const useProperties = (params: UsePropertiesParams = {}) => {
                 }
             }
 
-            const response = await axiosInstance.get(`/properties?${queryParams.toString()}`);
+            const response = await publicApi.get(`/properties?${queryParams.toString()}`);
             const data = response.data.data;
 
             if (parsedParams.all) {

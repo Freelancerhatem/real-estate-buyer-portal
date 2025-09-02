@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import axiosInstance from "@/lib/axiosInstance";
+import { protectedApi } from "@/lib/axiosInstance";
 import { StaticImageData } from "next/image";
 import { useRouter } from "next/navigation";
 import { listing } from "@/types/listing";
@@ -32,7 +32,7 @@ export const useAuth = () => {
         const fetchUser = async () => {
             try {
 
-                const res = await axiosInstance.get<{ user: AuthUserType }>("/auth/v2/me");
+                const res = await protectedApi.get<{ user: AuthUserType }>("/auth/v2/me");
                 setUser(res.data.user);
             } catch (err) {
                 console.warn("Failed to fetch user:", err);
@@ -47,7 +47,7 @@ export const useAuth = () => {
 
     const logout = async () => {
         try {
-            await axiosInstance.post("/auth/v2/logout");
+            await protectedApi.post("/auth/v2/logout");
         } catch (err) {
             console.warn("Logout failed:", err);
         } finally {

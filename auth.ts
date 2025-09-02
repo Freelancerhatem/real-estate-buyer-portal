@@ -2,7 +2,7 @@
 import { NextAuthOptions } from "next-auth";
 import GoogleProvider from "next-auth/providers/google";
 import FacebookProvider from "next-auth/providers/facebook";
-import axiosInstance from "@/lib/axiosInstance";
+import { publicApi } from "@/lib/axiosInstance";
 
 export const auth: NextAuthOptions = {
     providers: [
@@ -28,7 +28,7 @@ export const auth: NextAuthOptions = {
 
             if (account?.provider === "google" || account?.provider === "facebook") {
                 try {
-                    const res = await axiosInstance.post(
+                    const res = await publicApi.post(
                         "/auth/oauth-login",
                         {
                             email: user?.email,

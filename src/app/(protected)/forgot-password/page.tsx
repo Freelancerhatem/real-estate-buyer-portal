@@ -5,8 +5,8 @@ import Link from "next/link";
 import { useState, useMemo } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import bg from "@/assets/images/auth-bg.png";
-import axiosInstance from "@/lib/axiosInstance";
 import type { AxiosError } from "axios";
+import { protectedApi } from "@/lib/axiosInstance";
 
 type ApiSuccess = { message: string };
 type ApiError = { message?: string };
@@ -47,7 +47,7 @@ export default function ForgotPasswordPage() {
     setSuccessMsg(null);
 
     try {
-      const res = await axiosInstance.post<ApiSuccess>("/auth/reset-password", {
+      const res = await protectedApi.post<ApiSuccess>("/auth/reset-password", {
         token,
         password,
       });

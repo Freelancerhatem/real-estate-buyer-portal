@@ -10,7 +10,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import axiosInstance from "@/lib/axiosInstance";
+import { protectedApi } from "@/lib/axiosInstance";
 import Timeline from "./Timeline";
 import QuickActions from "./QuickActions";
 import AutoTemplates from "./AutoTemplates";
@@ -69,7 +69,7 @@ export default function ThreadView() {
         setLoading(true);
         setError(null);
 
-        const hdrRes = await axiosInstance.get(`/inquiries/${activeId}`);
+        const hdrRes = await protectedApi.get(`/inquiries/${activeId}`);
         const x = hdrRes?.data?.data ?? hdrRes?.data;
 
         const hdr: Inquiry = {
@@ -99,7 +99,7 @@ export default function ThreadView() {
 
         // messages (optional endpoint)
         try {
-          const msgRes = await axiosInstance.get(
+          const msgRes = await protectedApi.get(
             `/inquiries/${activeId}/messages`
           );
           const ms = (msgRes?.data?.data ?? msgRes?.data ?? []) as any[];
@@ -128,7 +128,7 @@ export default function ThreadView() {
 
         // timeline (optional endpoint — preload silently for instant open)
         try {
-          const tlRes = await axiosInstance.get(
+          const tlRes = await protectedApi.get(
             `/inquiries/${activeId}/timeline`
           );
           const ts = (tlRes?.data?.data ?? tlRes?.data ?? []) as any[];
@@ -177,7 +177,7 @@ export default function ThreadView() {
   const sendMessage = useCallback(async () => {
     if (!composer.trim() || !activeId) return;
     try {
-      const res = await axiosInstance.post(`/inquiries/${activeId}/messages`, {
+      const res = await protectedApi.post(`/inquiries/${activeId}/messages`, {
         from: "buyer",
         text: composer.trim(),
       });
@@ -208,10 +208,11 @@ export default function ThreadView() {
     async (kind: TimelineKind, title: string, meta?: Record<string, any>) => {
       if (!activeId) return;
       try {
-        const res = await axiosInstance.post(
-          `/inquiries/${activeId}/timeline`,
-          { kind, title, meta }
-        );
+        const res = await protectedApi.post(`/inquiries/${activeId}/timeline`, {
+          kind,
+          title,
+          meta,
+        });
         const saved = res?.data?.data ?? res?.data;
         const item: TimelineEvent = {
           id: saved?._id ?? `tl-${Date.now()}`,

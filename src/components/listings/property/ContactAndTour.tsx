@@ -4,7 +4,7 @@ import { useState } from "react";
 import { FaRegCalendarAlt } from "react-icons/fa";
 import { MdTour } from "react-icons/md";
 import toast from "react-hot-toast";
-import axiosInstance from "@/lib/axiosInstance";
+import { protectedApi } from "@/lib/axiosInstance";
 import { useAuth } from "@/hooks/useAuth";
 import { AxiosError } from "axios";
 
@@ -37,7 +37,7 @@ const ContactAndTour = ({ id }: { id: string | undefined }) => {
     const toastId = toast.loading("Scheduling your tour...");
 
     try {
-      await axiosInstance.post("/tour/schedule", {
+      await protectedApi.post("/tour/schedule", {
         userId,
         propertyId,
         preferredDate: formData.date,

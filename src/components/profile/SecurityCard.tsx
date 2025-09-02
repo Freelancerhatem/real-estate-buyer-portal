@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import axiosInstance from "@/lib/axiosInstance";
+import { protectedApi } from "@/lib/axiosInstance";
 
 function cn(...xs: (string | false | undefined)[]) {
   return xs.filter(Boolean).join(" ");
@@ -32,7 +32,7 @@ export default function SecurityCard() {
     setSaving(true);
     setMsg(null);
     try {
-      await axiosInstance.post("/auth/v2/change-password", {
+      await protectedApi.post("/auth/v2/change-password", {
         currentPassword: form.currentPassword,
         newPassword: form.newPassword,
       });

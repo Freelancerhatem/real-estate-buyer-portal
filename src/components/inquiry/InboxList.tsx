@@ -10,7 +10,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import axiosInstance from "@/lib/axiosInstance";
+import { publicApi } from "@/lib/axiosInstance";
 import type { Inquiry, InquiryStatus } from "./types";
 import Image from "next/image";
 import { FiSearch } from "react-icons/fi";
@@ -50,7 +50,7 @@ export default function InboxList() {
         setLoading(true);
         setError(null);
 
-        const res = await axiosInstance.get("/inquiries", {
+        const res = await publicApi.get("/inquiries", {
           params: {
             search: search || undefined,
             status: statusFilter === "all" ? undefined : statusFilter,

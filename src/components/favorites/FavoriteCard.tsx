@@ -2,9 +2,9 @@
 
 import Image from "next/image";
 import { FiHeart, FiMapPin } from "react-icons/fi";
-import axiosInstance from "@/lib/axiosInstance";
 import toast from "react-hot-toast";
 import { confirmRemove } from "./helper";
+import { protectedApi } from "@/lib/axiosInstance";
 
 export type FavoriteProperty = {
   id: string;
@@ -33,12 +33,10 @@ function formatLocation(loc?: FavoriteProperty["location"]) {
 
 export default function FavoriteCard({
   item,
-  userId, // ⟵ provide userId so the card can call the API
   onRemove, // ⟵ optimistic UI callback from parent
   onOpen,
 }: {
   item: FavoriteProperty;
-  userId: string;
   onRemove?: (id: string) => void;
   onOpen?: (id: string) => void;
 }) {
@@ -48,8 +46,8 @@ export default function FavoriteCard({
     confirmRemove(async () => {
       onRemove?.(item.id);
       try {
-        await axiosInstance.delete("/v2/favorites", {
-          data: { userId, propertyId: item.id },
+        await protectedApi.delete("/v2/favorites", {
+          data: { propertyId: item.id },
         });
         toast.success("Removed from favorites");
       } catch (err: any) {

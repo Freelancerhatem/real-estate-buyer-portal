@@ -1,8 +1,8 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import axiosInstance from "@/lib/axiosInstance";
 import Card from "@/components/listings/Card";
+import { publicApi } from "@/lib/axiosInstance";
 const Featured = () => {
   const [featured, setFeatured] = useState([]);
   const [error, setError] = useState<string | null>(null);
@@ -12,7 +12,7 @@ const Featured = () => {
     const fetchFeatured = async () => {
       try {
         setLoading(true);
-        const response = await axiosInstance.get("/properties/featured");
+        const response = await publicApi.get("/properties/featured");
         setFeatured(response.data.data.slice(0, 3));
       } catch (err) {
         setError(err instanceof Error ? err.message : "Unknown error");

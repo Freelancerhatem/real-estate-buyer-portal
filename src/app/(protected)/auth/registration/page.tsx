@@ -5,8 +5,8 @@ import { FaGoogle, FaFacebook } from "react-icons/fa";
 import bg from "@/assets/images/auth-bg.png";
 import { useForm, Controller } from "react-hook-form";
 import { signIn } from "next-auth/react";
-import axiosInstance from "@/lib/axiosInstance";
 import { useRouter } from "next/navigation";
+import { publicApi } from "@/lib/axiosInstance";
 
 type TRegister = {
   firstName: string;
@@ -42,7 +42,7 @@ const RegistrationPage = () => {
     }
 
     try {
-      const response = await axiosInstance.post("/auth/registration", {
+      const response = await publicApi.post("/auth/registration", {
         firstName: data.firstName,
         lastName: data.lastName,
         email: data.email,

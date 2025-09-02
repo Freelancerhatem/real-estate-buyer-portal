@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import axiosInstance from "@/lib/axiosInstance";
+import { protectedApi } from "@/lib/axiosInstance";
 
 export type FavoriteCheckResponse = { isFavorite?: boolean } | null;
 
@@ -49,7 +49,7 @@ export function useFavorite({
             try {
                 setInitLoading(true);
                 setError(null);
-                const res = await axiosInstance.get<FavoriteCheckResponse>(
+                const res = await protectedApi.get<FavoriteCheckResponse>(
                     getUrl(propertyId),
                     { signal: controller.signal }
                 );
@@ -71,7 +71,7 @@ export function useFavorite({
         setLoading(true);
         setError(null);
         try {
-            await axiosInstance.post(addUrl, { propertyId });
+            await protectedApi.post(addUrl, { propertyId });
             if (mounted.current) setIsFavorite(true);
             return true;
         } catch (e) {
@@ -86,7 +86,7 @@ export function useFavorite({
         setLoading(true);
         setError(null);
         try {
-            await axiosInstance.delete(removeUrl, { data: { propertyId } });
+            await protectedApi.delete(removeUrl, { data: { propertyId } });
             if (mounted.current) setIsFavorite(false);
             return true;
         } catch (e) {

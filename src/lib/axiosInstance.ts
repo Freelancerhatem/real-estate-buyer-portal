@@ -1,4 +1,4 @@
-// src/lib/axiosInstance.ts
+
 "use client";
 
 import axios, { AxiosError } from "axios";
@@ -6,14 +6,25 @@ import { token } from "./authTokens";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL;
 
-const axiosInstance = axios.create({
+/**
+ * Public API client (no auth)
+ */
+export const publicApi = axios.create({
     baseURL: API_BASE,
     headers: { "Content-Type": "application/json" },
-    withCredentials: true, // so refresh cookie is sent automatically
 });
 
-// Attach access token before each request
-axiosInstance.interceptors.request.use((config) => {
+/**
+ * Protected API client (adds token + refresh)
+ */
+export const protectedApi = axios.create({
+    baseURL: API_BASE,
+    headers: { "Content-Type": "application/json" },
+    withCredentials: true,
+});
+
+// Attach access token
+protectedApi.interceptors.request.use((config) => {
     const at = token.get();
     if (at && config.headers) {
         config.headers.Authorization = `Bearer ${at}`;
@@ -21,7 +32,7 @@ axiosInstance.interceptors.request.use((config) => {
     return config;
 });
 
-// Handle 401 → try refresh once
+// 401 → refresh flow
 let isRefreshing = false;
 let queue: { resolve: (t: string) => void; reject: (e: any) => void }[] = [];
 
@@ -33,7 +44,7 @@ function processQueue(err: any, newToken: string | null = null) {
     queue = [];
 }
 
-axiosInstance.interceptors.response.use(
+protectedApi.interceptors.response.use(
     (res) => res,
     async (error: AxiosError) => {
         const original = error.config as any;
@@ -47,7 +58,7 @@ axiosInstance.interceptors.response.use(
                             if (original.headers) {
                                 original.headers.Authorization = `Bearer ${newToken}`;
                             }
-                            resolve(axiosInstance(original));
+                            resolve(protectedApi(original));
                         },
                         reject,
                     });
@@ -56,21 +67,20 @@ axiosInstance.interceptors.response.use(
 
             isRefreshing = true;
             try {
-                // hit refresh endpoint — refresh token is httpOnly cookie
-                const res = await axios.post<{ accessToken: string }>(
-                    `${API_BASE}/auth/v2/refresh-token`,
+                const res = await publicApi.post<{ accessToken: string }>(
+                    "/auth/v2/refresh-token",
                     {},
                     { withCredentials: true }
                 );
 
                 const newToken = res.data.accessToken;
-                token.set(newToken); // persist + update header
+                token.set(newToken);
                 processQueue(null, newToken);
 
                 if (original.headers) {
                     original.headers.Authorization = `Bearer ${newToken}`;
                 }
-                return axiosInstance(original);
+                return protectedApi(original);
             } catch (err) {
                 processQueue(err, null);
                 token.clear();
@@ -85,5 +95,3 @@ axiosInstance.interceptors.response.use(
         return Promise.reject(error);
     }
 );
-
-export default axiosInstance;

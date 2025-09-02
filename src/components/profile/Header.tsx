@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useRef, useState } from "react";
-import axiosInstance from "@/lib/axiosInstance";
+import { protectedApi } from "@/lib/axiosInstance";
 import Avatar from "./Avatar";
 import { User } from "@/types/user";
 
@@ -47,7 +47,7 @@ export default function Header({
     try {
       const fd = new FormData();
       fd.append("avatar", f);
-      const { data } = await axiosInstance.post<{ user: User }>(
+      const { data } = await protectedApi.post<{ user: User }>(
         "/auth/me/avatar",
         fd,
         { headers: { "Content-Type": "multipart/form-data" } }

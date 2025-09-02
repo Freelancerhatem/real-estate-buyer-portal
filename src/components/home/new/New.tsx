@@ -1,6 +1,6 @@
 "use client";
 import Card from "@/components/listings/Card";
-import axiosInstance from "@/lib/axiosInstance";
+import { publicApi } from "@/lib/axiosInstance";
 import { listing } from "@/types/listing";
 import React, { useEffect, useState } from "react";
 
@@ -11,7 +11,7 @@ const New = () => {
   useEffect(() => {
     const fetchNewListings = async () => {
       try {
-        const response = await axiosInstance("/properties/new");
+        const response = await publicApi("/properties/new");
         setData(response.data.data.slice(0, 3));
       } catch (err) {
         setError(err instanceof Error ? err.message : "Unknown error");

@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import axiosInstance from "@/lib/axiosInstance";
+import { publicApi } from "@/lib/axiosInstance";
 import Card from "@/components/listings/Card";
 import { listing } from "@/types/listing";
 import SelectForm from "./SelectForm";
@@ -33,7 +33,7 @@ const Favorite = () => {
         sort: sortBy,
       };
 
-      const response = await axiosInstance.get("/properties/favorites/find", {
+      const response = await publicApi.get("/properties/favorites/find", {
         params,
       });
       setFilteredFavorites(response.data.data);

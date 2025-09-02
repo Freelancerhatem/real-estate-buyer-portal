@@ -5,7 +5,7 @@ import Image from "next/image";
 import demoUser from "@/assets/images/demo-user.png";
 import { useForm, SubmitHandler } from "react-hook-form";
 import Swal from "sweetalert2";
-import axiosInstance from "@/lib/axiosInstance";
+import axiosInstance, { protectedApi } from "@/lib/axiosInstance";
 import { TbMessageChatbotFilled } from "react-icons/tb";
 
 // Define form data types
@@ -51,7 +51,7 @@ const ContactOwner: React.FC<IProps> = ({ ownerInforMation }) => {
     try {
       // const finalData = { ...data, _id };
       const finalData = { user1Id: buyerId, user2Id: ownerInforMation?._id };
-      const createConversation = await axiosInstance.post(
+      const createConversation = await protectedApi.post(
         "/conversations/create",
         finalData
       );
@@ -62,7 +62,7 @@ const ContactOwner: React.FC<IProps> = ({ ownerInforMation }) => {
         content: `Hello, ${ownerInforMation?.firstName}. I am ${data.name}, and I need some information about (specific property). My inquiry is: ${data.message}. You can contact me further via email at ${data.email} or by phone at (phone number).`,
         conversationId: createConversation.data._id,
       };
-      await axiosInstance.post(`/conversations/send`, messageFormat);
+      await protectedApi.post(`/conversations/send`, messageFormat);
       reset();
 
       Swal.fire({

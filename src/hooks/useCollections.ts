@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import axiosInstance from "@/lib/axiosInstance";
+import { protectedApi } from "@/lib/axiosInstance";
 
 export type Collection = {
     _id: string;
@@ -63,7 +63,7 @@ export function useCollections({
         setLoading(true);
         setError(null);
         try {
-            const { data } = await axiosInstance.get<{ collections: Collection[] }>(listUrl);
+            const { data } = await protectedApi.get<{ collections: Collection[] }>(listUrl);
             if (!mounted.current) return [];
             setCollections(data?.collections ?? []);
             return data?.collections ?? [];
@@ -83,7 +83,7 @@ export function useCollections({
     const createCollection = useCallback(
         async (name: string, isDefault?: boolean) => {
             const payload = { name, ...(isDefault != null ? { isDefault } : {}) };
-            const { data } = await axiosInstance.post<{ collection: Collection }>(createUrl, payload);
+            const { data } = await protectedApi.post<{ collection: Collection }>(createUrl, payload);
             const created = data.collection;
             setCollections((prev) => [created, ...prev]);
             return created;
@@ -94,7 +94,7 @@ export function useCollections({
     const addToCollection = useCallback(
         async (collectionId: string, propertyId: string) => {
             const url = itemsBase(collectionId);
-            await axiosInstance.post(url, { propertyId });
+            await protectedApi.post(url, { propertyId });
             return true;
         },
         [itemsBase]
@@ -103,7 +103,7 @@ export function useCollections({
     const removeFromCollection = useCallback(
         async (collectionId: string, propertyId: string) => {
             const url = itemsBase(collectionId);
-            await axiosInstance.delete(url, { data: { propertyId } });
+            await protectedApi.delete(url, { data: { propertyId } });
             return true;
         },
         [itemsBase]
@@ -112,7 +112,7 @@ export function useCollections({
     const listItems = useCallback(
         async (collectionId: string) => {
             const url = itemsBase(collectionId);
-            const { data } = await axiosInstance.get<{ items: CollectionItem[] }>(url);
+            const { data } = await protectedApi.get<{ items: CollectionItem[] }>(url);
             return data.items || [];
         },
         [itemsBase]

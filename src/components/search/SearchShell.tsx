@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import axiosInstance from "@/lib/axiosInstance";
+import { publicApi } from "@/lib/axiosInstance";
 import SearchBar from "./SearchBar";
 import Filters from "./Filters";
 import Results from "./Results";
@@ -97,7 +97,7 @@ export default function SearchShell() {
       setLoading(true);
       try {
         const qs = buildQuery(state);
-        const { data } = await axiosInstance.get<PropertiesEnvelope>(
+        const { data } = await publicApi.get<PropertiesEnvelope>(
           `/properties${qs ? `?${qs}` : ""}`
         );
 

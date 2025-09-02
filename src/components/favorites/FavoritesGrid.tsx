@@ -1,10 +1,10 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import axiosInstance from "@/lib/axiosInstance";
 import { useUnifiedAuth } from "@/hooks/useUnifiedAuth";
 import { useRouter } from "next/navigation";
 import FavoriteCard, { FavoriteProperty } from "./FavoriteCard";
+import { protectedApi } from "@/lib/axiosInstance";
 
 type Query = Partial<{
   search: string;
@@ -69,7 +69,7 @@ export default function FavoritesGrid({ query }: { query: Query }) {
         setError(null);
 
         const userId = (user?._id || user?.id) as string;
-        const res = await axiosInstance.get(`/favorites/${userId}`, {
+        const res = await protectedApi.get(`/favorites/${userId}`, {
           params: query,
         });
         const raw = (res?.data?.data ?? res?.data ?? []) as ApiFavorite[];
@@ -118,7 +118,7 @@ export default function FavoritesGrid({ query }: { query: Query }) {
     setItems((s) => s.filter((x) => x.id !== propertyId));
 
     try {
-      await axiosInstance.delete("/favorites", {
+      await protectedApi.delete("/favorites", {
         data: { userId: user?._id || user?.id, propertyId },
       });
     } catch {

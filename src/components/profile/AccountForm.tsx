@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import axiosInstance from "@/lib/axiosInstance";
+import { protectedApi } from "@/lib/axiosInstance";
 import { User } from "@/types/user";
 
 function cn(...xs: (string | false | undefined)[]) {
@@ -36,7 +36,7 @@ export default function AccountForm({
     setSaving(true);
     setMsg(null);
     try {
-      const { data } = await axiosInstance.patch<{ user: User }>(
+      const { data } = await protectedApi.patch<{ user: User }>(
         "/users/me",
         form
       );
