@@ -5,7 +5,7 @@ import Image from "next/image";
 import demoUser from "@/assets/images/demo-user.png";
 import { useForm, SubmitHandler } from "react-hook-form";
 import Swal from "sweetalert2";
-import axiosInstance, { protectedApi } from "@/lib/axiosInstance";
+import { protectedApi } from "@/lib/axiosInstance";
 import { TbMessageChatbotFilled } from "react-icons/tb";
 
 // Define form data types

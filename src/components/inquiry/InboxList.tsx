@@ -1,16 +1,8 @@
 "use client";
 
-/**
- * InboxList (Classic Premium)
- * - Soft dividers instead of black borders
- * - Smooth hover states, subtle shadows, and elegant focus rings
- * - Active row uses left accent + tinted background
- * - Clean, timeless typography
- */
-
 import { useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { publicApi } from "@/lib/axiosInstance";
+import { protectedApi } from "@/lib/axiosInstance";
 import type { Inquiry, InquiryStatus } from "./types";
 import Image from "next/image";
 import { FiSearch } from "react-icons/fi";
@@ -50,7 +42,7 @@ export default function InboxList() {
         setLoading(true);
         setError(null);
 
-        const res = await publicApi.get("/inquiries", {
+        const res = await protectedApi.get("/inquiries", {
           params: {
             search: search || undefined,
             status: statusFilter === "all" ? undefined : statusFilter,

@@ -2,8 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import ImageSlider from "@/components/listings/property/Imageslider";
-import { PhotoProvider, PhotoView } from "react-photo-view";
+import ImageSlider from "@/components/listings/property/ImageSlider";
 import "react-photo-view/dist/react-photo-view.css";
 import { useEffect, useMemo, useRef } from "react";
 import { useParams } from "next/navigation";
@@ -11,7 +10,7 @@ import toast from "react-hot-toast";
 
 // react-icons
 import { BiSolidCheckbox } from "react-icons/bi";
-import { BsCurrencyDollar } from "react-icons/bs";
+import { BsCurrencyDollar, BsBuilding } from "react-icons/bs";
 import { CiBookmark } from "react-icons/ci";
 import { FaChartArea } from "react-icons/fa6";
 import { TiLocation } from "react-icons/ti";
@@ -25,13 +24,13 @@ import {
   FaAngleDoubleDown,
 } from "react-icons/fa";
 import { MdOutlineLocalHospital, MdOutlineKitchen } from "react-icons/md";
-import { BsBuilding } from "react-icons/bs";
 import { FiLayers } from "react-icons/fi";
 
 // hooks
 import usePropertyById from "@/hooks/usePropertyById";
 import { useUnifiedAuth } from "@/hooks/useUnifiedAuth";
 import { useFavorite } from "@/hooks/useFavorite";
+import useRecentlyViewed from "@/hooks/useRecentlyViewed";
 
 // components
 import ContactAndTour from "@/components/listings/property/ContactAndTour";
@@ -41,14 +40,19 @@ import Tabs from "@/components/listings/property/Tabs";
 import ContactOwner from "@/components/listings/property/ContactOwner";
 import ShareComponent from "@/components/listings/property/Share";
 import Card from "@/components/listings/Card";
-import useRecentlyViewed from "@/hooks/useRecentlyViewed";
+import { listing } from "@/types/listing";
 
 const Details = () => {
-  const { slug } = useParams();
+  const params = useParams<{ slug?: string | string[] }>();
+  const slug = params?.slug;
   const propertyId = Array.isArray(slug) ? slug[0] : slug;
 
-  const { property, loading, similarProperties } = usePropertyById(propertyId);
-  const ownerInforMation = property?.owner;
+  const {
+    property,
+    loading,
+    similarProperties = [],
+  } = usePropertyById(propertyId);
+  const ownerInformation = property?.owner;
 
   // auth → derive userId for favorites (fallback to null if signed out)
   const { user, loading: authLoading } = useUnifiedAuth();
@@ -56,12 +60,11 @@ const Details = () => {
 
   // favorites hook (per-card init on mount)
   const {
-    isFavorite,
-    loading: favLoading,
+    isFavorite = false,
+    loading: favLoading = false,
     toggle,
   } = useFavorite({
-    propertyId,
-    userId, // remove if your backend uses only cookies
+    propertyId: propertyId ?? "",
     initOnMount: true,
   });
 
@@ -83,18 +86,34 @@ const Details = () => {
     );
   }
 
+  if (!property) {
+    return (
+      <div className="min-h-screen pt-20 px-4 lg:p-20">
+        <h2 className="text-2xl font-bold mb-4">Listing not found</h2>
+        <p className="text-gray-600">
+          We couldn’t load this property. It may have been removed or the link
+          is incorrect.
+        </p>
+        <Link href="/" className="text-primary underline mt-4 inline-block">
+          Go back home
+        </Link>
+      </div>
+    );
+  }
+
   // click handler for the bookmark
   const handleToggleFavorite = async () => {
     if (!userId) {
       toast.error("Please log in to save favorites");
       return;
     }
-    const ok = await toggle(
-      (fav) =>
-        toast.success(fav ? "Added to favorites" : "Removed from favorites"),
-      () => toast.error("Something went wrong. Please try again.")
-    );
-    if (!ok) return;
+
+    try {
+      const fav = await toggle();
+      toast.success(fav ? "Added to favorites" : "Removed from favorites");
+    } catch {
+      toast.error("Something went wrong. Please try again.");
+    }
   };
 
   const features = [
@@ -135,6 +154,7 @@ const Details = () => {
       label: "Build 2007",
     },
   ];
+
   const facilities = [
     "Gym and Fitness Center",
     "Swimming Pool",
@@ -146,13 +166,13 @@ const Details = () => {
 
   return (
     <div className="min-h-screen pt-20 px-4 lg:p-20">
-      <h2 className="text-2xl font-bold mb-2">{property?.title}</h2>
+      <h1 className="text-2xl font-bold mb-2">{property.title}</h1>
 
       {/* top content */}
       <div className="flex lg:justify-between lg:items-center flex-col lg:flex-row space-y-4">
-        <div className="flex items-center">
-          <TiLocation />
-          <p>{property?.location.address}</p>
+        <div className="flex items-center gap-2 text-gray-700">
+          <TiLocation aria-hidden />
+          <p>{property?.location?.address ?? "Address unavailable"}</p>
         </div>
         <div className="flex items-center gap-4">
           <ShareComponent />
@@ -178,8 +198,13 @@ const Details = () => {
 
       {/* image slider */}
       <div className="py-10">
-        {property?.sliderImages && (
+        {Array.isArray(property?.sliderImages) &&
+        property.sliderImages.length > 0 ? (
           <ImageSlider images={property.sliderImages} />
+        ) : (
+          <div className="w-full aspect-video bg-gray-100 rounded-md grid place-items-center text-gray-500">
+            No images available
+          </div>
         )}
       </div>
 
@@ -192,11 +217,13 @@ const Details = () => {
             <div>
               <div className="flex items-center gap-2 text-gray-700 text-sm md:text-base font-medium">
                 <BiSolidCheckbox className="text-primary text-lg md:text-xl" />
-                For Sale
+                {property?.propertyType ?? "For Sale"}
               </div>
               <div className="flex items-center gap-1 text-black text-lg md:text-xl font-semibold">
                 <BsCurrencyDollar className="text-base" />
-                {property?.price?.toLocaleString()}
+                {typeof property?.price === "number"
+                  ? property.price.toLocaleString()
+                  : "Contact for price"}
               </div>
             </div>
 
@@ -209,7 +236,7 @@ const Details = () => {
                 </div>
                 <div className="flex items-center gap-1 text-lg font-bold text-black">
                   <BsCurrencyDollar className="text-base" />
-                  <span>20,000</span>
+                  <span>20,000$</span>
                 </div>
               </div>
               <div className="text-right">
@@ -225,14 +252,16 @@ const Details = () => {
             {/* Property Stats */}
             <div className="flex flex-wrap gap-3 text-sm md:text-base">
               <span className="bg-gray-100 px-4 py-2 flex items-center gap-2 rounded-md shadow-sm">
-                <FaBed className="text-base text-gray-600" /> 2 Beds
+                <FaBed className="text-base text-gray-600" />
+                {property?.totalBedrooms ?? 0} Beds
               </span>
               <span className="bg-gray-100 px-4 py-2 flex items-center gap-2 rounded-md shadow-sm">
-                <FaBath className="text-base text-gray-600" /> 3 Baths
+                <FaBath className="text-base text-gray-600" />
+                {property?.totalBathrooms ?? 0} Baths
               </span>
               <span className="bg-gray-100 px-4 py-2 flex items-center gap-2 rounded-md shadow-sm">
                 <FaChartArea className="text-base text-gray-600" />
-                12,400 sqft
+                {property?.totalArea ? property.totalArea : "—"} sqft
               </span>
             </div>
 
@@ -242,36 +271,41 @@ const Details = () => {
                 Overview
               </h2>
               <p className="text-gray-700 text-sm md:text-base leading-relaxed">
-                {property?.description}
+                {property?.description ?? "No description provided."}
               </p>
             </div>
           </div>
 
           {/* Right */}
           <div className="md:col-span-4">
-            <ContactAndTour id={propertyId} />
+            <ContactAndTour id={propertyId ?? ""} />
           </div>
         </div>
 
         {/* gallery */}
         <div className="py-5 space-y-5">
           <h2 className="text-2xl font-bold">Gallery</h2>
-          <PhotoProvider>
-            <div className="grid grid-cols-2 lg:grid-cols-3 gap-5">
-              {property?.galleryImages?.map((image, index) => (
-                <PhotoView key={index} src={image}>
-                  <Image
-                    src={image}
-                    alt={`Gallery ${index + 1}`}
-                    width={300}
-                    height={200}
-                    unoptimized
-                    className="cursor-pointer w-full rounded-md"
-                  />
-                </PhotoView>
-              ))}
-            </div>
-          </PhotoProvider>
+          {Array.isArray(property?.galleryImages) &&
+          property.galleryImages.length > 0 ? (
+            <PhotoProvider>
+              <div className="grid grid-cols-2 lg:grid-cols-3 gap-5">
+                {property.galleryImages.map((image: string, index: number) => (
+                  <PhotoView key={`${image}-${index}`} src={image}>
+                    <Image
+                      src={image}
+                      alt={`Gallery ${index + 1}`}
+                      width={300}
+                      height={200}
+                      unoptimized
+                      className="cursor-pointer w-full rounded-md object-cover"
+                    />
+                  </PhotoView>
+                ))}
+              </div>
+            </PhotoProvider>
+          ) : (
+            <p className="text-gray-500">No gallery images.</p>
+          )}
         </div>
 
         {/* location */}
@@ -279,13 +313,15 @@ const Details = () => {
           <h2 className="text-2xl font-bold pt-4 lg:pt-10">
             Location Information
           </h2>
-          {property?.nearbyLocations && (
+          {property?.nearbyLocations ? (
             <Tabs
-              locationInMap={property.location}
+              locationInMap={property?.location}
               schools={property.nearbyLocations.schools}
               shops={property.nearbyLocations.shops}
               commute={property.nearbyLocations.commute}
             />
+          ) : (
+            <p className="text-gray-500">Nearby information is unavailable.</p>
           )}
         </div>
 
@@ -299,11 +335,16 @@ const Details = () => {
           <h2 className="text-2xl font-bold mb-4">Similar Properties</h2>
           <div className="flex overflow-x-auto md:grid md:grid-cols-3 gap-4 space-x-4 md:space-x-0 pt-2 pb-2">
             {similarProperties.length > 0 ? (
-              similarProperties.slice(0, 3).map((listing, index) => (
-                <div className="min-w-[280px] md:min-w-0" key={index}>
-                  <Card badge="similar" timeAgo="1h ago" listing={listing} />
-                </div>
-              ))
+              similarProperties
+                .slice(0, 3)
+                .map((listing: listing, index: number) => (
+                  <div
+                    className="min-w-[280px] md:min-w-0"
+                    key={listing?._id ?? index}
+                  >
+                    <Card badge="similar" timeAgo="1h ago" listing={listing} />
+                  </div>
+                ))
             ) : (
               <p className="text-center text-gray-500 w-full">
                 No new listings available.
@@ -314,7 +355,7 @@ const Details = () => {
 
         {/* owner contact */}
         <div className="lg:pt-20 pt-10">
-          <ContactOwner ownerInforMation={ownerInforMation} />
+          <ContactOwner ownerInforMation={ownerInformation} />
         </div>
       </div>
     </div>

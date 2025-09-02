@@ -46,10 +46,6 @@ const ListingCard: React.FC<Props> = ({ listing, badge }) => {
   } = useFavorite({
     propertyId,
     initOnMount: false,
-    // If your API is mounted at /api, uncomment:
-    // getUrl: (id) => `/api/favorites/${id}`,
-    // addUrl: `/api/favorites`,
-    // removeUrl: `/api/favorites`,
   });
 
   const onToggleFavorite = async () => {
@@ -73,10 +69,7 @@ const ListingCard: React.FC<Props> = ({ listing, badge }) => {
     createCollection,
     addToCollection,
   } = useCollections({
-    initOnMount: false, // lazy load when user opens the picker
-    // listUrl: "/api/collections",
-    // createUrl: "/api/collections",
-    // itemsBase: (id) => `/api/collections/${id}/items`,
+    initOnMount: false,
   });
 
   const [pickerOpen, setPickerOpen] = useState(false);
